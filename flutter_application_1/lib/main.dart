@@ -23,6 +23,10 @@ class HomeActivity extends StatelessWidget{
         title: Text("Home 2"),
         backgroundColor: Colors.amber,
       ),
+
+      body: Center(
+        child: Text("Home Activity"),
+      ),
     );
   }
 }
