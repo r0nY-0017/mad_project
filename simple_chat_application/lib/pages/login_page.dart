@@ -16,108 +16,155 @@ class LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.message,
-              size: 70,
-              color: Colors.green.shade700,
+      body: Stack(
+        children: [
+          // Background with wave effect
+          Container(
+            height: double.infinity,
+            width: double.infinity,
+            child: CustomPaint(
+              painter: WavePainter(),
             ),
-            Text(
-              "Welcome to Chat App",
-              style: TextStyle(
-                color: Colors.green.shade900,
-                fontSize: 20,
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Email Field
-            MyTextfield(
-              obscureText: false,
-              label: "Email/Username",
-              controller: emailController, // Attach email controller
-            ),
-            const SizedBox(height: 20),
-
-            // Password Field
-            MyTextfield(
-              obscureText: true,
-              label: "Password",
-              controller: passwordController, // Attach password controller
-            ),
-
-            //Button
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity, // Makes the button take full width
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 60), // Adjust padding
-                child: ElevatedButton(
-                  onPressed: () {
-                    print("Login Button Clicked");
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green.shade700,
-                    padding: const EdgeInsets.symmetric(vertical: 17), // Adjust height
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+          ),
+          // Main content
+          SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 50),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Image.asset(
+                    'assets/logo.png',
+                    width: 150,
+                    height: 150,
+                    color: Colors.white,
                   ),
-                  child: const Text(
+                  const SizedBox(height: 120),
+                  Text(
                     "Login",
                     style: TextStyle(
-                      fontSize: 17,
-                      color: Colors.white,
+                      fontSize: 50,
                       fontWeight: FontWeight.bold,
+                      color: Colors.green.shade900,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  MyTextfield(
+                    obscureText: false,
+                    label: "Email/Username",
+                    controller: emailController,
+                  ),
+                  const SizedBox(height: 20),
+                  MyTextfield(
+                    obscureText: true,
+                    label: "Password",
+                    controller: passwordController,
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 60),
+                    child: ElevatedButton(
+                      onPressed: () {
+                        print("Login Button Clicked");
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green.shade700,
+                        padding: const EdgeInsets.symmetric(vertical: 17),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      child: const Text(
+                        "Login",
+                        style: TextStyle(
+                          fontSize: 17,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Don't have an account?  ",
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontSize: 14,
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RegisterPage(),
+                            ),
+                          );
+                        },
+                        child: Text(
+                          "Register",
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                        ),
+                      )
+                    ],
+                  )
+                ],
               ),
             ),
-            
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  "Don't have an account?  ",
-                  style: TextStyle(
-                    color: Colors.green.shade900,
-                    fontSize: 12,
-                  ),
-                ),
-                
-                GestureDetector(
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => RegisterPage()
-                      ),
-                    );
-                  },
-                  child: Text(
-                    "Register",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.green.shade900,
-                      fontWeight: FontWeight.bold,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                )
-
-              ],
-            )
-
-
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+// Custom Painter for Wave Effect
+class WavePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.green.shade900
+      ..style = PaintingStyle.fill;
+
+    final path = Path();
+    path.moveTo(0, size.height * 0.4);
+    
+    // Create wave effect
+    path.quadraticBezierTo(
+      size.width * 0.25,
+      size.height * 0.5,
+      size.width * 0.5,
+      size.height * 0.4,
+    );
+    path.quadraticBezierTo(
+      size.width * 0.75,
+      size.height * 0.3,
+      size.width,
+      size.height * 0.4,
+    );
+    path.lineTo(size.width, 0);
+    path.lineTo(0, 0);
+    path.close();
+
+    // Draw bottom color
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height * 0.4, size.width, size.height * 0.6),
+      Paint()..color = Colors.white,
+    );
+    
+    // Draw wave
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

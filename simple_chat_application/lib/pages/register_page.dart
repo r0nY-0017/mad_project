@@ -1,6 +1,9 @@
 import 'package:simple_chat_application/pages/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:simple_chat_application/components/myTextField.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:simple_chat_application/firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -10,32 +13,55 @@ class RegisterPage extends StatefulWidget {
 }
 
 class RegisterPageState extends State<RegisterPage> {
+  final TextEditingController name_Controller = TextEditingController();
   final TextEditingController email_Controller = TextEditingController();
   final TextEditingController uname_Controller = TextEditingController();
   final TextEditingController pw_Controller = TextEditingController();
   final TextEditingController cpw_Controller = TextEditingController();
 
+
+  void addUsers(String name, String email, String username, String password){
+    FirebaseFirestore.instance.collection('users')
+    .add({
+      'name' : name,
+      'email' : email,
+      'username' : username,
+      'password' : password,
+    })
+    .then((value) => print("Registered Successfully"))
+    .catchError((error) => print("Failed to Register: $error"));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.message,
-              size: 70,
-              color: Colors.green.shade700,
+            Image.asset(
+              'assets/logo.png',
+              width: 150,
+              height: 150,
+              color: Colors.green.shade900,
             ),
+
             Text(
               "Register",
               style: TextStyle(
                 color: Colors.green.shade900,
-                fontSize: 40,
+                fontSize: 50,
                 fontWeight: FontWeight.bold,
               ),
             ),
+            const SizedBox(height: 20),
+            MyTextfield(
+              obscureText: false,
+              label: "Full Name",
+              controller: name_Controller, // Attach email controller
+            ),
+
             const SizedBox(height: 20),
             MyTextfield(
               obscureText: false,
@@ -73,7 +99,12 @@ class RegisterPageState extends State<RegisterPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 60), // Adjust padding
                 child: ElevatedButton(
                   onPressed: () {
-                    print("Register Button Clicked");
+                    addUsers(
+                      name_Controller.text.toString(),
+                      email_Controller.text.toString(),
+                      uname_Controller.text.toString(),
+                      pw_Controller.text.toString()
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade700,
@@ -102,7 +133,7 @@ class RegisterPageState extends State<RegisterPage> {
                   "Already have an account?  ",
                   style: TextStyle(
                     color: Colors.green.shade900,
-                    fontSize: 12,
+                    fontSize: 14,
                   ),
                 ),
                 
@@ -118,7 +149,7 @@ class RegisterPageState extends State<RegisterPage> {
                   child: Text(
                     "Login",
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 14,
                       color: Colors.green.shade900,
                       fontWeight: FontWeight.bold,
                       decoration: TextDecoration.underline,

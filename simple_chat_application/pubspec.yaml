@@ -7,8 +7,12 @@ environment:
   sdk: ^3.6.1
 
 dependencies:
+  cloud_firestore: ^5.6.5
+  firebase_core: ^3.12.1
   flutter:
     sdk: flutter
+  flutter_animate: ^4.5.2
+  google_fonts: ^6.2.1
 
 dev_dependencies:
   flutter_test:
@@ -17,3 +21,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/
+

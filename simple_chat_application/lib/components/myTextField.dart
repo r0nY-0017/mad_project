@@ -42,7 +42,7 @@ class MyTextfieldState extends State<MyTextfield> {
         obscureText: obscureText,
         decoration: InputDecoration(
           enabledBorder: OutlineInputBorder(
-            borderSide: BorderSide(color: Colors.green.shade100),
+            borderSide: BorderSide(color: Colors.grey.shade200),
             borderRadius: BorderRadius.circular(10.0),
           ),
           focusedBorder: OutlineInputBorder(
