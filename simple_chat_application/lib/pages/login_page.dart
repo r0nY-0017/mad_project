@@ -18,13 +18,20 @@ class LoginPageState extends State<LoginPage> {
 
   // Function to show error or success messages
   void showMessage(String message, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white,
+          ),
+        ),
       ),
-    );
-  }
+      backgroundColor: isError ? Colors.red : Colors.green,
+    ),
+  );
+}
 
   // Function to validate and login user using Firestore
   Future<void> validateAndLogin() async {
@@ -90,7 +97,7 @@ class LoginPageState extends State<LoginPage> {
       body: Stack(
         children: [
           // Background with wave effect
-          Container(
+          SizedBox(
             height: double.infinity,
             width: double.infinity,
             child: CustomPaint(

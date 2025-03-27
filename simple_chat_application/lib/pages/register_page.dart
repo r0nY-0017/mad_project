@@ -21,13 +21,20 @@ class RegisterPageState extends State<RegisterPage> {
 
   // Function to show error or success messages
   void showMessage(String message, {bool isError = true}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? Colors.red : Colors.green,
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Center(
+        child: Text(
+          message,
+          style: const TextStyle(
+            color: Colors.white, // Optional: Ensure text is visible on the background
+          ),
+        ),
       ),
-    );
-  }
+      backgroundColor: isError ? Colors.red : Colors.green,
+    ),
+  );
+}
 
   // Function to validate password strength
   bool isPasswordStrong(String password) {
