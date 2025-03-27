@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:simple_chat_application/pages/home_screen.dart';
-import 'package:simple_chat_application/pages/register_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:simple_chat_application/pages/splash_screen.dart';
 import 'firebase_options.dart';

@@ -1,6 +1,9 @@
+import 'package:simple_chat_application/pages/home_page.dart';
 import 'package:simple_chat_application/pages/register_page.dart';
 import 'package:flutter/material.dart';
 import 'package:simple_chat_application/components/mytextField.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:email_validator/email_validator.dart'; // For email validation
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,6 +15,74 @@ class LoginPage extends StatefulWidget {
 class LoginPageState extends State<LoginPage> {
   final TextEditingController emailController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
+
+  // Function to show error or success messages
+  void showMessage(String message, {bool isError = true}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+      ),
+    );
+  }
+
+  // Function to validate and login user using Firestore
+  Future<void> validateAndLogin() async {
+    String emailOrUsername = emailController.text.trim();
+    String password = passwordController.text.trim();
+
+    // Check for empty fields
+    if (emailOrUsername.isEmpty || password.isEmpty) {
+      showMessage('All fields are required!');
+      return;
+    }
+
+    try {
+      // Check if the input is an email or username
+      QuerySnapshot userQuery;
+      if (EmailValidator.validate(emailOrUsername)) {
+        // Input is an email
+        userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('email', isEqualTo: emailOrUsername)
+            .get();
+      } else {
+        // Input is a username
+        userQuery = await FirebaseFirestore.instance
+            .collection('users')
+            .where('username', isEqualTo: emailOrUsername)
+            .get();
+      }
+
+      // Check if user exists
+      if (userQuery.docs.isEmpty) {
+        showMessage('User not found!');
+        return;
+      }
+
+      // Get the user document
+      var userDoc = userQuery.docs.first;
+      String storedPassword = userDoc['password'] as String;
+
+      // Validate password
+      if (storedPassword != password) {
+        showMessage('Incorrect password!');
+        return;
+      }
+
+      // If credentials are valid, show success message and navigate to HomePage
+      showMessage('Login successful!', isError: false);
+
+      // Navigate to HomePage after successful login
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => HomePage()),
+      );
+    } catch (e) {
+      // Handle any errors during Firestore query
+      showMessage('Login failed: ${e.toString()}');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -65,9 +136,7 @@ class LoginPageState extends State<LoginPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 60),
                     child: ElevatedButton(
-                      onPressed: () {
-                        print("Login Button Clicked");
-                      },
+                      onPressed: validateAndLogin, // Call the validation and login function
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green.shade700,
                         padding: const EdgeInsets.symmetric(vertical: 17),
@@ -124,6 +193,14 @@ class LoginPageState extends State<LoginPage> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    // Dispose controllers to free up resources
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 }
 

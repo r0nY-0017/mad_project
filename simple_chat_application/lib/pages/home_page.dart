@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:simple_chat_application/pages/login_page.dart';
 
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  HomeScreenState createState() => HomeScreenState();
+  HomePageState createState() => HomePageState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
+class HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   void _onItemTapped(int index) {
     setState(() {
@@ -75,7 +75,12 @@ class HomeScreenState extends State<HomeScreen> {
                 leading: Icon(Icons.logout),
                 title: Text("Log Out"),
                 onTap: () {
-                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LoginPage(),
+                    ),
+                  );
                 },
               ),
             ],
