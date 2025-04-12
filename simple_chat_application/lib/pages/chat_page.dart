@@ -22,48 +22,90 @@ class ChatPage extends StatefulWidget {
 class ChatPageState extends State<ChatPage> {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ScrollController _scrollController = ScrollController();
 
-  // Send a message
+  @override
+  void initState() {
+    super.initState();
+    _markMessagesAsSeen();
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _markMessagesAsSeen() async {
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    try {
+      var messages = await FirebaseFirestore.instance
+          .collection('chats')
+          .doc(widget.chatId)
+          .collection('messages')
+          .where('senderId', isNotEqualTo: currentUserId)
+          .get();
+
+      for (var doc in messages.docs) {
+        var data = doc.data();
+        var seenBy = List<String>.from(data['seenBy'] ?? []);
+        if (!seenBy.contains(currentUserId)) {
+          await doc.reference.update({
+            'seenBy': FieldValue.arrayUnion([currentUserId]),
+          });
+        }
+      }
+      print('Marked ${messages.docs.length} messages as seen for user: $currentUserId');
+    } catch (e) {
+      print('Error marking messages as seen: $e');
+    }
+  }
+
   Future<void> _sendMessage() async {
     if (_messageController.text.trim().isEmpty) return;
 
     final currentUserId = _auth.currentUser?.uid;
     if (currentUserId == null) return;
 
-    final messageData = {
-      'senderId': currentUserId,
-      'text': _messageController.text.trim(),
-      'timestamp': FieldValue.serverTimestamp(),
-    };
-
     try {
-      // Add message to the messages subcollection
-      await _firestore
+      var messageText = _messageController.text.trim();
+      await FirebaseFirestore.instance
           .collection('chats')
           .doc(widget.chatId)
           .collection('messages')
-          .add(messageData);
+          .add({
+        'senderId': currentUserId,
+        'text': messageText,
+        'timestamp': FieldValue.serverTimestamp(),
+        'seenBy': [],
+      });
 
-      // Update the chat document with the last message and timestamp
-      await _firestore.collection('chats').doc(widget.chatId).update({
-        'lastMessage': _messageController.text.trim(),
+      await FirebaseFirestore.instance.collection('chats').doc(widget.chatId).update({
+        'lastMessage': messageText,
         'lastMessageTime': FieldValue.serverTimestamp(),
       });
 
-      // Clear the input field
+      print('Sent message: "$messageText" in chat ${widget.chatId}');
       _messageController.clear();
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeOut,
+          );
+        }
+      });
     } catch (e) {
+      print('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message: $e')),
+        SnackBar(content: Text('Failed to send message: $e'), backgroundColor: Colors.red),
       );
     }
-  }
-
-  @override
-  void dispose() {
-    _messageController.dispose();
-    super.dispose();
   }
 
   @override
@@ -72,21 +114,9 @@ class ChatPageState extends State<ChatPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Row(
-          children: [
-            CircleAvatar(
-              backgroundColor: Colors.green.shade200,
-              child: Text(
-                widget.otherUsername[0].toUpperCase(),
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Text(
-              widget.otherUsername,
-              style: const TextStyle(color: Colors.white),
-            ),
-          ],
+        title: Text(
+          widget.otherUsername,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         backgroundColor: Colors.green.shade700,
         leading: IconButton(
@@ -98,7 +128,7 @@ class ChatPageState extends State<ChatPage> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
+              stream: FirebaseFirestore.instance
                   .collection('chats')
                   .doc(widget.chatId)
                   .collection('messages')
@@ -106,6 +136,7 @@ class ChatPageState extends State<ChatPage> {
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
+                  print('Error loading messages: ${snapshot.error}');
                   return const Center(child: Text('Error loading messages'));
                 }
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -116,106 +147,93 @@ class ChatPageState extends State<ChatPage> {
                 }
 
                 return ListView.builder(
-                  reverse: true, // Show newest messages at the bottom
+                  reverse: true,
+                  controller: _scrollController,
                   itemCount: snapshot.data!.docs.length,
                   itemBuilder: (context, index) {
                     var message = snapshot.data!.docs[index];
                     var messageData = message.data() as Map<String, dynamic>;
-                    bool isMe = messageData['senderId'] == currentUserId;
+                    var isMe = messageData['senderId'] == currentUserId;
 
-                    return _buildMessageBubble(
-                      messageData['text'] ?? '',
-                      isMe,
-                      messageData['timestamp'] as Timestamp?,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
+                      child: Row(
+                        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+                        children: [
+                          Flexible(
+                            child: Container(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.7,
+                              ),
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.green.shade700 : Colors.grey.shade300,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Column(
+                                crossAxisAlignment:
+                                    isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    messageData['text'] ?? '',
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white : Colors.black,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 5),
+                                  Text(
+                                    messageData['timestamp'] != null
+                                        ? DateFormat('hh:mm a').format(
+                                            (messageData['timestamp'] as Timestamp).toDate())
+                                        : '',
+                                    style: TextStyle(
+                                      color: isMe ? Colors.white70 : Colors.grey.shade600,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     );
                   },
                 );
               },
             ),
           ),
-          _buildMessageInput(),
-        ],
-      ),
-    );
-  }
-
-  // Build a message bubble
-  Widget _buildMessageBubble(String text, bool isMe, Timestamp? timestamp) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      child: Align(
-        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-        child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Container(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.75,
-              ),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: isMe ? Colors.green.shade600 : Colors.grey.shade200,
-                borderRadius: BorderRadius.circular(15).copyWith(
-                  topLeft: isMe ? const Radius.circular(15) : const Radius.circular(5),
-                  topRight: isMe ? const Radius.circular(5) : const Radius.circular(15),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _messageController,
+                    decoration: InputDecoration(
+                      hintText: 'Type a message...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.green.shade700),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.green.shade700, width: 2),
+                      ),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
                 ),
-              ),
-              child: Text(
-                text,
-                style: TextStyle(
-                  color: isMe ? Colors.white : Colors.black,
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.green.shade700,
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: _sendMessage,
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 3),
-            Text(
-              timestamp != null
-                  ? DateFormat('hh:mm a').format(timestamp.toDate())
-                  : '',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 10,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Build the message input field and send button
-  Widget _buildMessageInput() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      color: Colors.grey.shade100,
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: _messageController,
-              decoration: InputDecoration(
-                hintText: 'Type a message...',
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 10,
-                ),
-              ),
-              onSubmitted: (value) => _sendMessage(),
-            ),
-          ),
-          const SizedBox(width: 8),
-          CircleAvatar(
-            backgroundColor: Colors.green.shade700,
-            child: IconButton(
-              icon: const Icon(Icons.send, color: Colors.white),
-              onPressed: _sendMessage,
+              ],
             ),
           ),
         ],
