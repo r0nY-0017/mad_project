@@ -22,33 +22,21 @@ class UserStatusService {
 
   // Stream to listen to a user's online status
   Stream<bool> getUserStatusStream(String userId) {
-    if (userId.isEmpty) return Stream.value(false);
-    
     return _firestore
         .collection('users')
         .doc(userId)
         .snapshots()
-        .map((doc) {
-          if (!doc.exists) return false;
-          final data = doc.data();
-          if (data == null) return false;
-          return data['isOnline'] ?? false;
-        });
+        .map((doc) => doc.data()?['isOnline'] ?? false);
   }
 
   // Get user's last seen timestamp
   Stream<DateTime?> getUserLastSeenStream(String userId) {
-    if (userId.isEmpty) return Stream.value(null);
-
     return _firestore
         .collection('users')
         .doc(userId)
         .snapshots()
         .map((doc) {
-          if (!doc.exists) return null;
-          final data = doc.data();
-          if (data == null) return null;
-          final timestamp = data['lastSeen'] as Timestamp?;
+          final timestamp = doc.data()?['lastSeen'] as Timestamp?;
           return timestamp?.toDate();
         });
   }

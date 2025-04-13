@@ -22,7 +22,7 @@
   <meta name="description" content="A new Flutter project.">
 
   <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="simple_chat_application">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
@@ -33,26 +33,30 @@
   <title>simple_chat_application</title>
   <link rel="manifest" href="manifest.json">
 
-  <!-- Firebase configuration -->
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyADtcvMSA8eledfuHByobD6fh3Bx7NJX7k",
-      authDomain: "adda-chat-app-8ca5d.firebaseapp.com",
-      projectId: "adda-chat-app-8ca5d",
-      storageBucket: "adda-chat-app-8ca5d.firebasestorage.app",
-      messagingSenderId: "688301604597",
-      appId: "1:688301604597:web:3343765c39f05a6ac40fbc",
-      measurementId: "G-MTHVZ9P08C"
-    };
-    firebase.initializeApp(firebaseConfig);
+    // The value below is injected by flutter build, do not touch.
+    const serviceWorkerVersion = null;
   </script>
+  <!-- This script adds the flutter initialization JS code -->
+  <script src="flutter.js" defer></script>
 </head>
 
 <body>
-  <script src="flutter_bootstrap.js" async></script>
+  <script>
+    window.addEventListener('load', function (ev) {
+      // Download main.dart.js
+      _flutter.loader.loadEntrypoint({
+        serviceWorker: {
+          serviceWorkerVersion: serviceWorkerVersion,
+        },
+        onEntrypointLoaded: function (engineInitializer) {
+          engineInitializer.initializeEngine().then(function (appRunner) {
+            appRunner.runApp();
+          });
+        }
+      });
+    });
+  </script>
 </body>
 
 </html>

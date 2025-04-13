@@ -87,6 +87,9 @@ class RegisterPageState extends State<RegisterPage> {
         'username': username,
         'avatarUrl': avatarUrl,
         'createdAt': Timestamp.now(),
+        'friends': [],           // Add empty friends array
+        'friendRequests': [],    // Add empty friend requests array
+        'status': 'Hey there! I am using Adda Chat', // Default status
       });
       showMessage('Firestore data saved successfully', isError: false);
 
