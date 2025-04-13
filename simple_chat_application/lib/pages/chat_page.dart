@@ -20,7 +20,7 @@ class ChatPage extends StatefulWidget {
   ChatPageState createState() => ChatPageState();
 }
 
-class ChatPageState extends State<ChatPage> {
+class ChatPageState extends State<ChatPage> with WidgetsBindingObserver {
   final TextEditingController _messageController = TextEditingController();
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final ScrollController _scrollController = ScrollController();
@@ -29,16 +29,36 @@ class ChatPageState extends State<ChatPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _markMessagesAsSeen();
-    _userStatusService.updateUserStatus(true);
+    _updateUserStatus(true);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
-    _userStatusService.updateUserStatus(false);
+    _updateUserStatus(false);
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _updateUserStatus(true);
+    } else if (state == AppLifecycleState.paused || 
+              state == AppLifecycleState.inactive || 
+              state == AppLifecycleState.detached) {
+      _updateUserStatus(false);
+    }
+  }
+
+  Future<void> _updateUserStatus(bool isOnline) async {
+    if (_auth.currentUser != null) {
+      await _userStatusService.updateUserStatus(isOnline);
+    }
   }
 
   Future<void> _markMessagesAsSeen() async {
@@ -62,7 +82,6 @@ class ChatPageState extends State<ChatPage> {
           });
         }
       }
-      print('Marked ${messages.docs.length} messages as seen for user: $currentUserId');
     } catch (e) {
       print('Error marking messages as seen: $e');
     }
@@ -92,20 +111,18 @@ class ChatPageState extends State<ChatPage> {
         'lastMessageTime': FieldValue.serverTimestamp(),
       });
 
-      print('Sent message: "$messageText" in chat ${widget.chatId}');
       _messageController.clear();
-
+      
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
-            _scrollController.position.maxScrollExtent,
+            0,
             duration: const Duration(milliseconds: 300),
             curve: Curves.easeOut,
           );
         }
       });
     } catch (e) {
-      print('Error sending message: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to send message: $e'), backgroundColor: Colors.red),
       );

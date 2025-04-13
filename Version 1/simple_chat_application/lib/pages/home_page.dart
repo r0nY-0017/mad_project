@@ -3,7 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:simple_chat_application/pages/login_page.dart';
 import 'package:simple_chat_application/pages/chat_page.dart';
+import 'package:simple_chat_application/pages/friends_page.dart';
+import 'package:simple_chat_application/pages/profile_page.dart';
 import 'package:simple_chat_application/services/user_status_service.dart';
+import 'package:simple_chat_application/services/friends_service.dart';
 import 'package:intl/intl.dart';
 
 class HomePage extends StatefulWidget {
@@ -17,11 +20,29 @@ class HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final UserStatusService _userStatusService = UserStatusService();
+  final FriendsService _friendsService = FriendsService();
+
+  // List of pages to show in the bottom navigation
+  late final List<Widget> _pages;
 
   @override
   void initState() {
     super.initState();
-    _userStatusService.updateUserStatus(true);
+    _initializeUser();
+    _pages = [
+      ChatListPage(onStartChat: _startChat),
+      const FriendsPage(),
+      const Center(child: Text('Coming Soon')),
+    ];
+  }
+
+  Future<void> _initializeUser() async {
+    try {
+      await _friendsService.initializeUserDocument();
+      await _userStatusService.updateUserStatus(true);
+    } catch (e) {
+      print('Error initializing user: $e');
+    }
   }
 
   @override
@@ -34,22 +55,60 @@ class HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = index;
     });
-    switch (index) {
-      case 0:
-        break;
-      case 1:
-      case 2:
-      case 3:
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Feature coming soon!')),
-        );
-        break;
+    if (index == 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Feature coming soon!')),
+      );
     }
   }
 
   Future<void> _signOut() async {
     await _auth.signOut();
     Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+  }
+
+  Future<void> _clearAllChats() async {
+    final currentUserId = _auth.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    try {
+      // Get all chats where the current user is a participant
+      final chatQuery = await FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: currentUserId)
+          .get();
+
+      // Start a batch write
+      final batch = FirebaseFirestore.instance.batch();
+
+      // Add delete operations to batch
+      for (var chatDoc in chatQuery.docs) {
+        batch.delete(chatDoc.reference);
+      }
+
+      // Commit the batch
+      await batch.commit();
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('All chats cleared successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      print('Error clearing chats: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error clearing chats: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _startChat(String otherUserId, String otherUsername) async {
@@ -125,10 +184,96 @@ class HomePageState extends State<HomePage> {
     final currentUserId = _auth.currentUser?.uid;
 
     return Scaffold(
+      drawer: Drawer(
+        child: FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance.collection('users').doc(currentUserId).get(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final userData = snapshot.data!.data() as Map<String, dynamic>;
+            final username = userData['username'] ?? 'Unknown User';
+            final email = userData['email'] ?? '';
+            final avatarUrl = userData['avatarUrl'];
+
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                UserAccountsDrawerHeader(
+                  decoration: BoxDecoration(
+                    color: Colors.green.shade700,
+                  ),
+                  accountName: Text(
+                    username,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  accountEmail: Text(email),
+                  currentAccountPicture: CircleAvatar(
+                    backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: avatarUrl == null || avatarUrl.isEmpty
+                        ? const Icon(Icons.person, size: 40)
+                        : null,
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.chat),
+                  title: const Text('Chats'),
+                  selected: _selectedIndex == 0,
+                  selectedColor: Colors.green.shade700,
+                  onTap: () {
+                    setState(() {
+                      _selectedIndex = 0;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.people),
+                  title: const Text('Friends'),
+                  selected: _selectedIndex == 1,
+                  selectedColor: Colors.green.shade700,
+                  onTap: () {
+                    setState(() {
+                      _selectedIndex = 1;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.settings),
+                  title: const Text('Settings'),
+                  selected: _selectedIndex == 2,
+                  selectedColor: Colors.green.shade700,
+                  onTap: () {
+                    setState(() {
+                      _selectedIndex = 2;
+                    });
+                    Navigator.pop(context);
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.red),
+                  title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await _signOut();
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+      ),
       appBar: AppBar(
         title: const Text("Adda Chat", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
-        backgroundColor: Colors.green.shade700,
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
@@ -136,374 +281,245 @@ class HomePageState extends State<HomePage> {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Search feature coming soon!')));
             },
           ),
-        ],
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').doc(currentUserId).snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.hasError) {
-                  return DrawerHeader(
-                    decoration: BoxDecoration(color: Colors.green.shade700),
-                    child: const Center(child: CircularProgressIndicator(color: Colors.white)),
+          StreamBuilder<DocumentSnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUserId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && snapshot.data != null) {
+                final userData = snapshot.data!.data() as Map<String, dynamic>;
+                final avatarUrl = userData['avatarUrl'];
+                final status = userData['status'] ?? 'Hey there! I am using Adda Chat';
+                
+                return Tooltip(
+                  message: status,
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ProfilePage(),
+                        ),
+                      );
+                    },
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: CircleAvatar(
+                        radius: 15,
+                        backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        child: avatarUrl == null || avatarUrl.isEmpty
+                            ? const Icon(Icons.account_circle, color: Colors.white)
+                            : null,
+                      ),
+                    ),
+                  ),
+                );
+              }
+              return IconButton(
+                icon: const Icon(Icons.account_circle, color: Colors.white),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilePage(),
+                    ),
                   );
-                }
-
-                var userData = snapshot.data!.data() as Map<String, dynamic>?;
-                String avatarUrl = userData?['avatarUrl'] ?? 'https://robohash.org/John';
-                String fullName = userData?['name'] ?? 'User';
-                String email = userData?['email'] ?? 'No email';
-
-                return DrawerHeader(
-                  decoration: BoxDecoration(color: Colors.green.shade700),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundColor: Colors.grey.shade300,
-                        child: ClipOval(
-                          child: Image.network(
-                            avatarUrl,
-                            width: 60,
-                            height: 60,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => const Icon(Icons.error, color: Colors.red, size: 30),
-                            loadingBuilder: (context, child, loadingProgress) =>
-                                loadingProgress == null ? child : const CircularProgressIndicator(),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(fullName, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(email, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-                    ],
-                  ),
-                );
-              },
-            ),
-            ListTile(leading: const Icon(Icons.home), title: const Text("Home"), onTap: () => Navigator.pop(context)),
-            ListTile(leading: const Icon(Icons.group), title: const Text("Groups"), onTap: () => Navigator.pop(context)),
-            ListTile(leading: const Icon(Icons.settings), title: const Text("Settings"), onTap: () => Navigator.pop(context)),
-            ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text("Log Out"),
-              onTap: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("Confirm Logout"),
-                    content: const Text("Are you sure you want to log out?"),
-                    actions: [
-                      TextButton(onPressed: () => Navigator.pop(context), child: const Text("No", style: TextStyle(color: Colors.grey))),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.pop(context);
-                          await _signOut();
-                        },
-                        child: const Text("Yes", style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
-      ),
-      body: Column(
-        children: [
-          Container(
-            height: 100,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  print('Error loading users: ${snapshot.error}');
-                  return const Center(child: Text("Error loading users"));
-                }
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  print('No users found in Firestore');
-                  return const Center(child: Text("No users found"));
-                }
-
-                var users = snapshot.data!.docs.where((doc) => doc.id != currentUserId).toList();
-                print('Found ${users.length} other users: ${users.map((u) => u['name']).toList()}');
-
-                if (users.isEmpty) {
-                  return const Center(child: Text("No other users registered yet"));
-                }
-
-                return ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: users.length,
-                  itemBuilder: (context, index) {
-                    var user = users[index];
-                    var userId = user.id;
-                    var fullName = user['name'] as String? ?? 'Unknown';
-                    var avatarUrl = user['avatarUrl'] as String? ?? 'https://robohash.org/John';
-
-                    print('Displaying user: $fullName with avatar: $avatarUrl');
-
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: GestureDetector(
-                        onTap: () {
-                          print('Tapped user: $fullName ($userId)');
-                          _startChat(userId, fullName);
-                        },
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            CircleAvatar(
-                              radius: 25,
-                              backgroundColor: Colors.grey.shade300,
-                              child: ClipOval(
-                                child: Image.network(
-                                  avatarUrl,
-                                  width: 50,
-                                  height: 50,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    print('Failed to load avatar for $fullName: $error');
-                                    return const Icon(Icons.error, color: Colors.red, size: 25);
-                                  },
-                                  loadingBuilder: (context, child, loadingProgress) =>
-                                      loadingProgress == null ? child : const CircularProgressIndicator(),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 5),
-                            SizedBox(
-                              width: 60,
-                              child: Text(
-                                fullName,
-                                style: const TextStyle(fontSize: 12),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
+                },
+              );
+            },
           ),
-          Expanded(
-            child: _selectedIndex == 0 ? _buildChatList() : const Center(child: Text("Feature coming soon!")),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('New chat feature coming soon!')));
-        },
-        backgroundColor: Colors.green.shade700,
-        child: const Icon(Icons.message, color: Colors.white),
-      ),
+      body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'Chats'),
-          BottomNavigationBarItem(icon: Icon(Icons.group), label: 'Groups'),
-          BottomNavigationBarItem(icon: Icon(Icons.people), label: 'Friends'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(
+            icon: Icon(Icons.chat),
+            label: 'Chats',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Friends',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings),
+            label: 'Settings',
+          ),
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.green.shade700,
-        unselectedItemColor: Colors.grey[400],
         onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
       ),
     );
   }
+}
 
-  Widget _buildChatList() {
-    final currentUserId = _auth.currentUser?.uid;
-    if (currentUserId == null) {
-      print('No user logged in');
-      return const Center(child: Text("Please log in to view chats"));
-    }
+class ChatListPage extends StatelessWidget {
+  final Function(String, String) onStartChat;
 
-    print('Building conversation list for user: $currentUserId');
+  const ChatListPage({Key? key, required this.onStartChat}) : super(key: key);
 
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('chats')
-          .where('participants', arrayContains: currentUserId)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          print('Error loading conversations: ${snapshot.error}');
-          return const Center(child: Text("Error loading conversations"));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          print('Waiting for conversations to load');
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          print('No conversations found for user: $currentUserId');
-          return const Center(child: Text("No Message"));
-        }
+  @override
+  Widget build(BuildContext context) {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
 
-        var chats = snapshot.data!.docs;
-        print('Found ${chats.length} conversations for user: $currentUserId');
+    return Column(
+      children: [
+        // Users list at the top
+        Container(
+          height: 100,
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance.collection('users').snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
 
-        return ListView.builder(
-          itemCount: chats.length,
-          itemBuilder: (context, index) {
-            var chat = chats[index];
-            var chatData = chat.data() as Map<String, dynamic>;
-            var participants = chatData['participants'] as List<dynamic>? ?? [];
-            var otherUserId = participants.firstWhere(
-              (id) => id != currentUserId,
-              orElse: () => null,
-            );
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-            if (otherUserId == null) {
-              print('No other user found for conversation ${chat.id}');
-              return const SizedBox.shrink();
-            }
+              final users = snapshot.data!.docs
+                  .where((doc) => doc.id != currentUserId)
+                  .toList();
 
-            var lastMessage = chatData['lastMessage'] as String? ?? '';
-            var lastMessageTime = chatData['lastMessageTime'] as Timestamp?;
+              if (users.isEmpty) {
+                return const Center(child: Text('No other users'));
+              }
 
-            return StreamBuilder<DocumentSnapshot>(
-              stream: FirebaseFirestore.instance.collection('users').doc(otherUserId).snapshots(),
-              builder: (context, userSnapshot) {
-                if (userSnapshot.hasError) {
-                  print('Error loading user $otherUserId: ${userSnapshot.error}');
-                  return const ListTile(title: Text("Error loading user"));
-                }
-                if (!userSnapshot.hasData) {
-                  print('Loading user $otherUserId');
-                  return const ListTile(title: Text("Loading..."));
-                }
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: users.length,
+                itemBuilder: (context, index) {
+                  final user = users[index];
+                  final userData = user.data() as Map<String, dynamic>;
+                  final userId = user.id;
+                  final username = userData['username'] ?? 'Unknown';
+                  final profileImage = userData['avatarUrl'];
 
-                var userData = userSnapshot.data!.data() as Map<String, dynamic>?;
-                var fullName = userData?['name'] as String? ?? 'Unknown';
-
-                return StreamBuilder<bool>(
-                  stream: _userStatusService.getUserStatusStream(otherUserId),
-                  builder: (context, statusSnapshot) {
-                    bool isOnline = statusSnapshot.data ?? false;
-
-                    return StreamBuilder<QuerySnapshot>(
-                      stream: FirebaseFirestore.instance
-                          .collection('chats')
-                          .doc(chat.id)
-                          .collection('messages')
-                          .orderBy('timestamp', descending: true)
-                          .limit(1)
-                          .snapshots(),
-                      builder: (context, messageSnapshot) {
-                        bool isUnseen = false;
-                        String displayMessage = lastMessage;
-                        String displayTime = '';
-
-                        if (messageSnapshot.hasError) {
-                          print('Error loading messages for conversation ${chat.id}: ${messageSnapshot.error}');
-                        }
-                        if (messageSnapshot.hasData && messageSnapshot.data!.docs.isNotEmpty) {
-                          var lastMessageData = messageSnapshot.data!.docs.first.data() as Map<String, dynamic>;
-                          var seenBy = lastMessageData['seenBy'] as List<dynamic>? ?? [];
-                          isUnseen = lastMessageData['senderId'] != currentUserId && !seenBy.contains(currentUserId);
-                          displayMessage = lastMessageData['text'] as String? ?? 'No messages yet';
-                          var messageTime = lastMessageData['timestamp'] as Timestamp?;
-                          displayTime = messageTime != null
-                              ? DateFormat('hh:mm a').format(messageTime.toDate())
-                              : (lastMessageTime != null
-                                  ? DateFormat('hh:mm a').format(lastMessageTime.toDate())
-                                  : '');
-                        } else if (lastMessageTime != null) {
-                          displayTime = DateFormat('hh:mm a').format(lastMessageTime.toDate());
-                        }
-
-                        return ListTile(
-                          leading: Stack(
-                            children: [
-                              CircleAvatar(
-                                backgroundColor: Colors.green.shade200,
-                                child: Text(
-                                  fullName.isNotEmpty ? fullName[0].toUpperCase() : '?',
-                                  style: const TextStyle(color: Colors.white),
-                                ),
-                              ),
-                              if (isOnline)
-                                Positioned(
-                                  right: 0,
-                                  bottom: 0,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                            ],
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: GestureDetector(
+                      onTap: () => onStartChat(userId, username),
+                      child: Column(
+                        children: [
+                          CircleAvatar(
+                            radius: 25,
+                            backgroundImage: profileImage != null && profileImage.isNotEmpty
+                                ? NetworkImage(profileImage)
+                                : null,
+                            child: profileImage == null || profileImage.isEmpty
+                                ? const Icon(Icons.person)
+                                : null,
                           ),
-                          title: Text(
-                            fullName,
-                            style: TextStyle(
-                              fontWeight: isUnseen ? FontWeight.bold : FontWeight.normal,
-                            ),
-                          ),
-                          subtitle: Text(
-                            displayMessage,
-                            maxLines: 1,
+                          const SizedBox(height: 4),
+                          Text(
+                            username,
+                            style: const TextStyle(fontSize: 12),
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontWeight: isUnseen ? FontWeight.bold : FontWeight.normal,
-                            ),
                           ),
-                          trailing: Text(
-                            displayTime,
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 12,
-                              fontWeight: isUnseen ? FontWeight.bold : FontWeight.normal,
-                            ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+
+        // Chats list
+        Expanded(
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('chats')
+                .where('participants', arrayContains: currentUserId)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final chats = snapshot.data!.docs;
+              if (chats.isEmpty) {
+                return const Center(child: Text('No chats yet'));
+              }
+
+              return ListView.builder(
+                itemCount: chats.length,
+                itemBuilder: (context, index) {
+                  final chat = chats[index];
+                  final participants = chat['participants'] as List;
+                  final otherUserId = participants.firstWhere(
+                    (id) => id != currentUserId,
+                    orElse: () => '',
+                  );
+
+                  if (otherUserId.isEmpty) return const SizedBox.shrink();
+
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(otherUserId)
+                        .get(),
+                    builder: (context, userSnapshot) {
+                      if (!userSnapshot.hasData) {
+                        return const ListTile(
+                          leading: CircleAvatar(
+                            child: CircularProgressIndicator(),
                           ),
-                          onTap: () {
-                            print('Tapped conversation with $fullName ($otherUserId, chatId: ${chat.id})');
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => ChatPage(
-                                  chatId: chat.id,
-                                  otherUserId: otherUserId,
-                                  otherUsername: fullName,
-                                ),
-                              ),
-                            );
-                          },
                         );
-                      },
-                    );
-                  },
-                );
-              },
-            );
-          },
-        );
-      },
+                      }
+
+                      final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                      final username = userData['username'] ?? 'Unknown User';
+                      final profileImage = userData['avatarUrl'];
+                      final lastMessage = chat['lastMessage'] ?? '';
+                      final lastMessageTime = chat['lastMessageTime'] as Timestamp?;
+
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundImage: profileImage != null && profileImage.isNotEmpty
+                              ? NetworkImage(profileImage)
+                              : null,
+                          child: profileImage == null || profileImage.isEmpty
+                              ? const Icon(Icons.person)
+                              : null,
+                        ),
+                        title: Text(username),
+                        subtitle: Text(
+                          lastMessage,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        trailing: lastMessageTime != null
+                            ? Text(
+                                DateFormat.jm().format(lastMessageTime.toDate()),
+                                style: const TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                ),
+                              )
+                            : null,
+                        onTap: () => onStartChat(otherUserId, username),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
