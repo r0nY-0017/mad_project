@@ -64,7 +64,8 @@ class HomePageState extends State<HomePage> {
 
   Future<void> _signOut() async {
     await _auth.signOut();
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const LoginPage()));
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (context) => const LoginPage()));
   }
 
   Future<void> _clearAllChats() async {
@@ -116,7 +117,9 @@ class HomePageState extends State<HomePage> {
     if (currentUserId == null) {
       print('Error: No current user logged in');
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please log in to start a chat'), backgroundColor: Colors.red),
+        const SnackBar(
+            content: Text('Please log in to start a chat'),
+            backgroundColor: Colors.red),
       );
       return;
     }
@@ -143,21 +146,27 @@ class HomePageState extends State<HomePage> {
       }
 
       if (chatId == null) {
-        print('No existing chat found. Creating new chat for $currentUserId and $otherUserId');
+        print(
+            'No existing chat found. Creating new chat for $currentUserId and $otherUserId');
         var chatData = {
           'participants': [currentUserId, otherUserId],
           'lastMessage': '',
           'lastMessageTime': FieldValue.serverTimestamp(),
         };
         print('Chat data to be sent: $chatData');
-        var newChat = await FirebaseFirestore.instance.collection('chats').add(chatData);
+        var newChat =
+            await FirebaseFirestore.instance.collection('chats').add(chatData);
         chatId = newChat.id;
         print('Created new chat: $chatId');
-        var createdChat = await FirebaseFirestore.instance.collection('chats').doc(chatId).get();
+        var createdChat = await FirebaseFirestore.instance
+            .collection('chats')
+            .doc(chatId)
+            .get();
         print('Verified chat $chatId: ${createdChat.data()}');
       }
 
-      print('Navigating to ChatPage with chatId: $chatId, otherUser: $otherUsername');
+      print(
+          'Navigating to ChatPage with chatId: $chatId, otherUser: $otherUsername');
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -186,7 +195,10 @@ class HomePageState extends State<HomePage> {
     return Scaffold(
       drawer: Drawer(
         child: FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance.collection('users').doc(currentUserId).get(),
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUserId)
+              .get(),
           builder: (context, snapshot) {
             if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
@@ -260,7 +272,8 @@ class HomePageState extends State<HomePage> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(Icons.logout, color: Colors.red),
-                  title: const Text('Logout', style: TextStyle(color: Colors.red)),
+                  title:
+                      const Text('Logout', style: TextStyle(color: Colors.red)),
                   onTap: () async {
                     Navigator.pop(context);
                     await _signOut();
@@ -272,13 +285,15 @@ class HomePageState extends State<HomePage> {
         ),
       ),
       appBar: AppBar(
-        title: const Text("Adda Chat", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text("Adda Chat",
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.search, color: Colors.white),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Search feature coming soon!')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Search feature coming soon!')));
             },
           ),
           StreamBuilder<DocumentSnapshot>(
@@ -290,8 +305,9 @@ class HomePageState extends State<HomePage> {
               if (snapshot.hasData && snapshot.data != null) {
                 final userData = snapshot.data!.data() as Map<String, dynamic>;
                 final avatarUrl = userData['avatarUrl'];
-                final status = userData['status'] ?? 'Hey there! I am using Adda Chat';
-                
+                final status =
+                    userData['status'] ?? 'Hey there! I am using Adda Chat';
+
                 return Tooltip(
                   message: status,
                   child: InkWell(
@@ -307,11 +323,13 @@ class HomePageState extends State<HomePage> {
                       padding: const EdgeInsets.all(8.0),
                       child: CircleAvatar(
                         radius: 15,
-                        backgroundImage: avatarUrl != null && avatarUrl.isNotEmpty
-                            ? NetworkImage(avatarUrl)
-                            : null,
+                        backgroundImage:
+                            avatarUrl != null && avatarUrl.isNotEmpty
+                                ? NetworkImage(avatarUrl)
+                                : null,
                         child: avatarUrl == null || avatarUrl.isEmpty
-                            ? const Icon(Icons.account_circle, color: Colors.white)
+                            ? const Icon(Icons.account_circle,
+                                color: Colors.white)
                             : null,
                       ),
                     ),
@@ -410,9 +428,10 @@ class ChatListPage extends StatelessWidget {
                         children: [
                           CircleAvatar(
                             radius: 25,
-                            backgroundImage: profileImage != null && profileImage.isNotEmpty
-                                ? NetworkImage(profileImage)
-                                : null,
+                            backgroundImage:
+                                profileImage != null && profileImage.isNotEmpty
+                                    ? NetworkImage(profileImage)
+                                    : null,
                             child: profileImage == null || profileImage.isEmpty
                                 ? const Icon(Icons.person)
                                 : null,
@@ -480,17 +499,20 @@ class ChatListPage extends StatelessWidget {
                         );
                       }
 
-                      final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                      final userData =
+                          userSnapshot.data!.data() as Map<String, dynamic>;
                       final username = userData['username'] ?? 'Unknown User';
                       final profileImage = userData['avatarUrl'];
                       final lastMessage = chat['lastMessage'] ?? '';
-                      final lastMessageTime = chat['lastMessageTime'] as Timestamp?;
+                      final lastMessageTime =
+                          chat['lastMessageTime'] as Timestamp?;
 
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundImage: profileImage != null && profileImage.isNotEmpty
-                              ? NetworkImage(profileImage)
-                              : null,
+                          backgroundImage:
+                              profileImage != null && profileImage.isNotEmpty
+                                  ? NetworkImage(profileImage)
+                                  : null,
                           child: profileImage == null || profileImage.isEmpty
                               ? const Icon(Icons.person)
                               : null,
@@ -503,7 +525,8 @@ class ChatListPage extends StatelessWidget {
                         ),
                         trailing: lastMessageTime != null
                             ? Text(
-                                DateFormat.jm().format(lastMessageTime.toDate()),
+                                DateFormat.jm()
+                                    .format(lastMessageTime.toDate()),
                                 style: const TextStyle(
                                   color: Colors.grey,
                                   fontSize: 12,
