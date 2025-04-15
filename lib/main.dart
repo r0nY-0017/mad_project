@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:provider/provider.dart';
 import 'package:simple_chat_application/pages/home_page.dart';
 import 'package:simple_chat_application/pages/login_page.dart';
-import 'package:simple_chat_application/services/setting_service.dart';
+import 'package:simple_chat_application/services/settings_service.dart';
 import 'firebase_options.dart';
 
 void main() async {

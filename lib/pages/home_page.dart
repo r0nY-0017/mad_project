@@ -5,6 +5,7 @@ import 'package:simple_chat_application/pages/login_page.dart';
 import 'package:simple_chat_application/pages/chat_page.dart';
 import 'package:simple_chat_application/pages/friends_page.dart';
 import 'package:simple_chat_application/pages/profile_page.dart';
+import 'package:simple_chat_application/pages/settings_page.dart';
 import 'package:simple_chat_application/services/user_status_service.dart';
 import 'package:simple_chat_application/services/friends_service.dart';
 import 'package:intl/intl.dart';
