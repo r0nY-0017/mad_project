@@ -152,8 +152,8 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Colors.green.shade700,
+        title: const Text('My Profile'),
+        backgroundColor: Colors.green.shade800,
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _firestore.collection('users').doc(_auth.currentUser?.uid).snapshots(),
@@ -165,7 +165,7 @@ class _ProfilePageState extends State<ProfilePage> {
           final userData = snapshot.data!.data() as Map<String, dynamic>;
           final username = userData['username'] ?? 'Unknown User';
           final email = userData['email'] ?? '';
-          final status = userData['status'] ?? 'Hey there! I am using Adda Chat';
+          final status = userData['status'] ?? 'Hey there! I am using Adda Chat - The Best Chat App!';
           final avatarUrl = userData['avatarUrl'];
 
           return SingleChildScrollView(
@@ -200,8 +200,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 Text(
                   username,
                   style: const TextStyle(
-                    fontSize: 24,
+                    fontSize: 26,
                     fontWeight: FontWeight.bold,
+                    color: Colors.green,
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -210,15 +211,19 @@ class _ProfilePageState extends State<ProfilePage> {
                   style: const TextStyle(
                     fontSize: 16,
                     color: Colors.grey,
+                    fontStyle: FontStyle.italic,
                   ),
                 ),
                 const SizedBox(height: 24),
                 ListTile(
-                  leading: const Icon(Icons.info_outline),
-                  title: Text(status),
-                  subtitle: const Text('Status'),
+                  leading: const Icon(Icons.info_outline, color: Colors.green),
+                  title: Text(
+                    status,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  subtitle: const Text('About Me'),
                   trailing: IconButton(
-                    icon: const Icon(Icons.edit),
+                    icon: const Icon(Icons.edit, color: Colors.green),
                     onPressed: () => _updateStatus(status),
                   ),
                 ),
