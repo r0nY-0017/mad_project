@@ -32,7 +32,7 @@ class HomePageState extends State<HomePage> {
     _pages = [
       ChatListPage(onStartChat: _startChat),
       const FriendsPage(),
-      const Center(child: Text('Coming Soon')),
+      const SettingsPage(),
     ];
   }
 
@@ -55,11 +55,6 @@ class HomePageState extends State<HomePage> {
     setState(() {
       _selectedIndex = index;
     });
-    if (index == 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Feature coming soon!')),
-      );
-    }
   }
 
   Future<void> _signOut() async {

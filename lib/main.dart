@@ -1,54 +1,93 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
+import 'package:simple_chat_application/pages/home_page.dart';
+import 'package:simple_chat_application/pages/login_page.dart';
+import 'package:simple_chat_application/services/setting_service.dart';
 import 'firebase_options.dart';
-import 'pages/login_page.dart';
-import 'pages/home_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
-  runApp(const MainApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (context) => SettingsService(),
+      child: const MyApp(),
+    ),
+  );
 }
 
-class MainApp extends StatefulWidget {
-  const MainApp({super.key});
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
 
-  @override
-  MainAppState createState() => MainAppState();
-}
-
-class MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Adda Chat',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.green,
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.green,
-          foregroundColor: Colors.white,
-        ),
-      ),
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          
-          if (snapshot.hasData) {
-            return const HomePage();
-          }
-          
-          return const LoginPage();
-        },
-      ),
+    return Consumer<SettingsService>(
+      
+      builder: (context, settings, child) {
+        ThemeMode themeMode;
+        switch (settings.themeMode) {
+          case 'light':
+            themeMode = ThemeMode.light;
+            break;
+          case 'dark':
+            themeMode = ThemeMode.dark;
+            break;
+          case 'system':
+          default:
+            themeMode = ThemeMode.system;
+        }
+
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Adda Chat',
+          theme: ThemeData(
+            primarySwatch: Colors.green,
+            brightness: Brightness.light,
+            textTheme: _buildTextTheme(settings.fontSize),
+          ),
+          darkTheme: ThemeData(
+            primarySwatch: Colors.green,
+            brightness: Brightness.dark,
+            textTheme: _buildTextTheme(settings.fontSize),
+          ),
+          themeMode: themeMode,
+          home: StreamBuilder<User?>(
+            stream: FirebaseAuth.instance.authStateChanges(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+              return snapshot.hasData ? const HomePage() : const LoginPage();
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  TextTheme _buildTextTheme(String fontSize) {
+    double baseFontSize;
+    switch (fontSize) {
+      case 'small':
+        baseFontSize = 10.0;
+        break;
+      case 'large':
+        baseFontSize = 18.0;
+        break;
+      case 'medium':
+      default:
+        baseFontSize = 14.0;
+    }
+
+    return TextTheme(
+      bodyMedium: TextStyle(fontSize: baseFontSize),
+      bodyLarge: TextStyle(fontSize: baseFontSize + 2),
+      titleMedium: TextStyle(fontSize: baseFontSize + 4),
+      titleLarge: TextStyle(fontSize: baseFontSize + 8),
     );
   }
 }
